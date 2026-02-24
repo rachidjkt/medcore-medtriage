@@ -1,0 +1,77 @@
+# =========================
+# Python
+# =========================
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.so
+*.egg-info/
+build/
+dist/
+
+# Virtual environments
+.venv/
+venv/
+env/
+
+# =========================
+# Environment / Secrets
+# =========================
+.env
+.env.*
+*.env
+
+# HuggingFace tokens / local secrets
+hf_token.txt
+hf_key.txt
+token.txt
+
+# Streamlit secrets
+.streamlit/secrets.toml
+
+# =========================
+# Local database (demo data)
+# =========================
+data/app_db.json
+
+# =========================
+# Model caches
+# =========================
+.cache/
+huggingface/
+hf_home/
+*.bin
+*.pt
+*.safetensors
+
+# Transformers cache
+~/.cache/huggingface/
+
+# =========================
+# Logs
+# =========================
+*.log
+
+# =========================
+# OS junk
+# =========================
+.DS_Store
+Thumbs.db
+
+# =========================
+# IDE
+# =========================
+.vscode/
+.idea/
+
+# =========================
+# Temporary files
+# =========================
+*.tmp
+*.temp
+# Secrets
+streamlit/secrets.toml
+.streamlit/secrets.toml
+.env
+*.env

@@ -1,0 +1,126 @@
+[
+    {
+        "name": "The Ottawa Hospital (Civic Campus)",
+        "type": "Academic Teaching Hospital",
+        "address": "1053 Carling Ave, Ottawa, ON K1Y 4E9",
+        "phone": "613-722-7000",
+        "lat": 45.4042,
+        "lon": -75.7229,
+        "specialties": [
+            "cardiac",
+            "neurological",
+            "respiratory",
+            "trauma",
+            "oncology",
+            "general"
+        ],
+        "trauma_level": 1,
+        "has_icu": true,
+        "notes": "Level 1 trauma centre; regional cardiac and neuroscience hub. 24/7 emergency."
+    },
+    {
+        "name": "The Ottawa Hospital (General Campus)",
+        "type": "Academic Teaching Hospital",
+        "address": "501 Smyth Rd, Ottawa, ON K1H 8L6",
+        "phone": "613-722-7000",
+        "lat": 45.3866,
+        "lon": -75.6652,
+        "specialties": [
+            "oncology",
+            "cardiac",
+            "respiratory",
+            "general",
+            "trauma"
+        ],
+        "trauma_level": 1,
+        "has_icu": true,
+        "notes": "Home of the Ottawa Hospital Cancer Centre. Major surgical and oncology services."
+    },
+    {
+        "name": "CHEO (Children's Hospital of Eastern Ontario)",
+        "type": "Pediatric Hospital",
+        "address": "401 Smyth Rd, Ottawa, ON K1H 8L1",
+        "phone": "613-737-7600",
+        "lat": 45.3825,
+        "lon": -75.6681,
+        "specialties": [
+            "general",
+            "neurological",
+            "respiratory",
+            "cardiac",
+            "trauma"
+        ],
+        "trauma_level": 1,
+        "has_icu": true,
+        "notes": "Pediatric Level 1 trauma centre. Specialized care for patients under 18."
+    },
+    {
+        "name": "Queensway Carleton Hospital",
+        "type": "Community Hospital",
+        "address": "3045 Baseline Rd, Nepean, ON K2H 8P4",
+        "phone": "613-721-2000",
+        "lat": 45.3259,
+        "lon": -75.8019,
+        "specialties": [
+            "general",
+            "cardiac",
+            "respiratory",
+            "trauma"
+        ],
+        "trauma_level": 2,
+        "has_icu": true,
+        "notes": "West Ottawa community hospital. Strong cardiac and general emergency services."
+    },
+    {
+        "name": "Montfort Hospital (Hôpital Montfort)",
+        "type": "Community Teaching Hospital",
+        "address": "713 Montreal Rd, Ottawa, ON K1K 0T2",
+        "phone": "613-746-4621",
+        "lat": 45.4424,
+        "lon": -75.6256,
+        "specialties": [
+            "general",
+            "respiratory",
+            "neurological"
+        ],
+        "trauma_level": 3,
+        "has_icu": false,
+        "notes": "Francophone academic hospital. Serves east Ottawa; strong community care focus."
+    },
+    {
+        "name": "Hôpital de Gatineau (CISSS de l'Outaouais)",
+        "type": "Regional Hospital",
+        "address": "909 boulevard La Vérendrye Est, Gatineau, QC",
+        "phone": "819-966-6100",
+        "lat": 45.4944,
+        "lon": -75.6903,
+        "specialties": [
+            "general",
+            "respiratory",
+            "cardiac",
+            "neurological",
+            "trauma"
+        ],
+        "trauma_level": 2,
+        "has_icu": true,
+        "notes": "Major hospital serving Gatineau/Outaouais. Emergency and inpatient services."
+    },
+    {
+        "name": "Hôpital de Hull (CISSS de l'Outaouais)",
+        "type": "Regional Hospital",
+        "address": "116 boulevard Lionel-Émond, Gatineau, QC",
+        "phone": "819-966-6200",
+        "lat": 45.4348,
+        "lon": -75.7429,
+        "specialties": [
+            "general",
+            "respiratory",
+            "cardiac",
+            "neurological",
+            "trauma"
+        ],
+        "trauma_level": 2,
+        "has_icu": true,
+        "notes": "Hull sector hospital (Gatineau). Emergency services and regional programs."
+    }
+]
