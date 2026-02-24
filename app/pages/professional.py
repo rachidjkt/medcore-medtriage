@@ -7,18 +7,23 @@ Professional dashboard (Overview) — MedCore style
 - Meeting request creator:
     clinician selects patient + proposes 3 slots (date + time inputs)
 - No raw JSON
+- IMPORTANT: Force import from app.ui (prevents accidentally importing stale root ui.py)
+- Hardening: HTML-escape user/DB strings inside unsafe HTML blocks
 """
 
 from __future__ import annotations
 
 from datetime import datetime, date
+import html
 import streamlit as st
 from pipelines.storage import get_db
 
-try:
-    from app.ui import inject_theme, metric_card, risk_badge, card_open, card_close
-except ModuleNotFoundError:
-    from ui import inject_theme, metric_card, risk_badge, card_open, card_close  # type: ignore
+# IMPORTANT: Force the correct module (do NOT fall back to `ui.py`)
+from app.ui import inject_theme, metric_card, risk_badge, card_open, card_close
+
+
+def _esc(x: str) -> str:
+    return html.escape(str(x or ""), quote=True)
 
 
 def _normalize_risk(level: str) -> str:
@@ -54,7 +59,6 @@ def render() -> None:
 
     pro_user = st.session_state.get("auth_user") or {}
     professional_id = str(pro_user.get("id", "professional"))
-    professional_name = pro_user.get("display_name", "Clinician")
 
     # -------------------------------------------------------------------------
     # Patients list
@@ -72,7 +76,10 @@ def render() -> None:
         if not patients:
             st.info("No patients found in DB (demo mode may still show dashboard metrics).")
         else:
-            patient_options = {f"{p.get('display_name','Patient')} · {p.get('email','')}".strip(" ·"): p for p in patients}
+            patient_options = {
+                f"{p.get('display_name','Patient')} · {p.get('email','')}".strip(" ·"): p
+                for p in patients
+            }
             patient_label = st.selectbox("Select patient", options=list(patient_options.keys()))
             patient = patient_options[patient_label]
             patient_id = str(patient.get("id"))
@@ -85,14 +92,13 @@ def render() -> None:
 
             with colB:
                 t1 = st.time_input("Time option 1", value=datetime.now().replace(minute=0, second=0, microsecond=0).time())
-                t2 = st.time_input("Time option 2", value=(datetime.now().replace(minute=0, second=0, microsecond=0)).time())
-                t3 = st.time_input("Time option 3", value=(datetime.now().replace(minute=0, second=0, microsecond=0)).time())
+                t2 = st.time_input("Time option 2", value=datetime.now().replace(minute=0, second=0, microsecond=0).time())
+                t3 = st.time_input("Time option 3", value=datetime.now().replace(minute=0, second=0, microsecond=0).time())
 
             with colC:
                 st.caption("These will be sent as **3 proposed slots**.\n\nPatient confirms one on their dashboard.")
 
                 if st.button("Send meeting request", type="primary", use_container_width=True):
-                    # Build ISO slots: YYYY-MM-DDTHH:MM
                     slots = [
                         datetime.combine(appt_date, t1).strftime("%Y-%m-%dT%H:%M"),
                         datetime.combine(appt_date, t2).strftime("%Y-%m-%dT%H:%M"),
@@ -167,19 +173,22 @@ def render() -> None:
                         pass
 
                 elif status == "proposed" and proposed:
-                    # show earliest proposed time as a hint
+                    # show earliest proposed time as a hint (and show the correct detail)
                     earliest = None
+                    earliest_str = None
                     for s in proposed:
                         try:
                             dt = datetime.fromisoformat(s)
-                            earliest = dt if (earliest is None or dt < earliest) else earliest
+                            if earliest is None or dt < earliest:
+                                earliest = dt
+                                earliest_str = s
                         except Exception:
                             continue
 
                     upcoming_appts += 1
-                    if earliest:
+                    if earliest and earliest_str:
                         upcoming.append(
-                            (earliest.strftime("%H:%M"), pname, "Consultation", earliest.strftime("%d %b"), "pending", _fmt_dt(proposed[0]))
+                            (earliest.strftime("%H:%M"), pname, "Consultation", earliest.strftime("%d %b"), "pending", _fmt_dt(earliest_str))
                         )
                     else:
                         upcoming.append(("—", pname, "Consultation", "—", "pending", "Select a time"))
@@ -199,7 +208,7 @@ def render() -> None:
             ("—", "Oliver Smith", "Consultation", "—", "pending", "Pending selection"),
         ]
 
-    # Metrics row
+    # Metrics row (SAFE: plain strings)
     c1, c2, c3 = st.columns(3, gap="large")
     with c1:
         metric_card("Active patients", str(len(patients)), foot="In database")
@@ -223,9 +232,9 @@ def render() -> None:
                     f"""
 <div style="display:flex; justify-content:space-between; gap:10px; padding:12px 0; border-top:1px solid rgba(15,23,42,0.06);">
   <div>
-    <div style="font-weight:750;">{pname}</div>
-    <div style="font-size:14px;">{label}</div>
-    <div class="mc-sub">{when}</div>
+    <div style="font-weight:750;">{_esc(pname)}</div>
+    <div style="font-size:14px;">{_esc(label)}</div>
+    <div class="mc-sub">{_esc(when)}</div>
   </div>
   <div>{risk_badge(risk)}</div>
 </div>
@@ -249,13 +258,13 @@ def render() -> None:
                     f"""
 <div style="display:flex; justify-content:space-between; gap:10px; padding:12px 0; border-top:1px solid rgba(15,23,42,0.06);">
   <div style="min-width:64px;">
-    <div style="font-weight:800;">{time}</div>
-    <div class="mc-sub">{date_str}</div>
+    <div style="font-weight:800;">{_esc(time)}</div>
+    <div class="mc-sub">{_esc(date_str)}</div>
   </div>
   <div style="flex:1;">
-    <div style="font-weight:750;">{who}</div>
-    <div class="mc-sub">{label}</div>
-    <div class="mc-sub">{detail}</div>
+    <div style="font-weight:750;">{_esc(who)}</div>
+    <div class="mc-sub">{_esc(label)}</div>
+    <div class="mc-sub">{_esc(detail)}</div>
   </div>
   <div style="display:flex; align-items:center; gap:8px;">
     {badge}

@@ -1,14 +1,12 @@
-# =========================
-# app/pages/patient.py  (UPDATED)
-# =========================
 """
-app/pages/patient.py
+app/pages/patient.py (DEMO SAFE — no HTML helpers)
 
-Patient portal: Overview (MedCore style)
-- Metrics + scan history
-- Action required for proposed appointment(s) (deduped)
-- Next appointment uses earliest confirmed future slot (fixes not updating)
-- Fix: avoid HTML inside metric_card (prevents </div> showing on mobile/Streamlit Cloud)
+Patient portal: Overview
+- Uses pure Streamlit components (st.metric, st.container)
+- Avoids any HTML rendering issues (prevents stray </div>)
+- Demo-clean appointments:
+    - If a confirmed future appointment exists: show confirmed only
+    - Else: show proposed + action required
 """
 
 from __future__ import annotations
@@ -18,11 +16,6 @@ from typing import List, Tuple
 
 import streamlit as st
 from pipelines.storage import get_db
-
-try:
-    from app.ui import inject_theme, metric_card, risk_badge, card_open, card_close
-except ModuleNotFoundError:
-    from ui import inject_theme, metric_card, risk_badge, card_open, card_close  # type: ignore
 
 
 def _normalize_risk(level: str) -> str:
@@ -34,6 +27,15 @@ def _normalize_risk(level: str) -> str:
     return "low"
 
 
+def _risk_text(risk: str) -> str:
+    r = (risk or "").lower()
+    if r == "high":
+        return "High Risk"
+    if r == "moderate":
+        return "Moderate Risk"
+    return "Low Risk"
+
+
 def _fmt_slot(iso_str: str) -> str:
     try:
         dt = datetime.fromisoformat(iso_str)
@@ -43,7 +45,6 @@ def _fmt_slot(iso_str: str) -> str:
 
 
 def render() -> None:
-    inject_theme()
     st.title("My Health Overview")
     st.caption(datetime.now().strftime("%A, %d %B %Y"))
 
@@ -57,16 +58,15 @@ def render() -> None:
     user = st.session_state.get("auth_user") or {}
     patient_id = str(user.get("id", "patient"))
 
-    # Pull reports + appointments (DB already dedupes appointments now)
     reports = db.list_reports(patient_id) if hasattr(db, "list_reports") else []
     appts = db.list_appointments(patient_id) if hasattr(db, "list_appointments") else []
 
     # -------------------------
-    # Recent scans (UI)
+    # Recent scans
     # -------------------------
     recent_scans: List[Tuple[str, str, str, dict]] = []  # label, date, risk, payload
-    last_risk = None
-    last_risk_date = None
+    last_risk: str | None = None
+    last_risk_date: str | None = None
 
     if reports:
         for r in reports[:8]:
@@ -88,7 +88,7 @@ def render() -> None:
             last_risk_date = None
 
     # -------------------------
-    # Appointments: compute next appointment robustly
+    # Appointments: choose one "state" for demo
     # -------------------------
     now = datetime.now()
     confirmed_future: List[datetime] = []
@@ -110,11 +110,13 @@ def render() -> None:
         if status == "proposed":
             for s in proposed:
                 try:
-                    dt = datetime.fromisoformat(s)
-                    proposed_times.append(dt)
+                    proposed_times.append(datetime.fromisoformat(s))
                 except Exception:
                     continue
 
+    any_confirmed_future = len(confirmed_future) > 0
+
+    # Next appointment metric
     next_appt_value = "—"
     next_appt_foot = ""
 
@@ -127,40 +129,33 @@ def render() -> None:
         next_appt_value = dt.strftime("%b %d")
         next_appt_foot = "Pending (select time below)"
 
-    # Upcoming list for sidebar card
-    upcoming: List[Tuple[str, str, str]] = []  # time, label, date
-    for a in appts[:10]:
-        status = getattr(a, "status", "")
-        chosen = getattr(a, "chosen_slot", None)
-        proposed = getattr(a, "proposed_slots", None) or []
+    # -------------------------
+    # Metrics row (PURE Streamlit)
+    # -------------------------
+    c1, c2, c3 = st.columns(3)
+    with c1:
+        st.metric("Scans uploaded", str(len(reports)))
+        st.caption("Total")
+    with c2:
+        st.metric("Next appointment", next_appt_value)
+        if next_appt_foot:
+            st.caption(next_appt_foot)
+    with c3:
+        st.metric("Last risk level", "—" if not last_risk else _risk_text(last_risk))
+        st.caption(last_risk_date or "")
 
-        if status == "confirmed" and chosen:
-            try:
-                dt = datetime.fromisoformat(chosen)
-                upcoming.append((dt.strftime("%H:%M"), "Consultation (confirmed)", dt.strftime("%d %b")))
-            except Exception:
-                pass
-        elif status == "proposed" and proposed:
-            earliest = None
-            for s in proposed:
-                try:
-                    dt = datetime.fromisoformat(s)
-                    earliest = dt if (earliest is None or dt < earliest) else earliest
-                except Exception:
-                    continue
-            if earliest:
-                upcoming.append((earliest.strftime("%H:%M"), "Consultation (choose a time)", earliest.strftime("%d %b")))
-            else:
-                upcoming.append(("—", "Consultation (choose a time)", "—"))
+    st.divider()
 
     # -------------------------
-    # Action required (dedupe proposed requests)
+    # Action required (ONLY if no confirmed future)
     # -------------------------
     proposed_requests = [
-        a for a in appts
+        a
+        for a in appts
         if getattr(a, "status", "") == "proposed" and (getattr(a, "proposed_slots", None) or [])
     ]
 
+    # Deduplicate proposed requests
     uniq = []
     seen = set()
     for a in proposed_requests:
@@ -171,31 +166,25 @@ def render() -> None:
         uniq.append(a)
     proposed_requests = uniq
 
-    if proposed_requests:
-        card_open("Action required", "A clinician proposed times — pick one to confirm.")
+    if proposed_requests and not any_confirmed_future:
+        st.subheader("Action required")
+        st.caption("A clinician proposed times — pick one to confirm.")
+
         for a in proposed_requests[:2]:
             appt_id = getattr(a, "id", "appt")
             slots = list(getattr(a, "proposed_slots", None) or [])
             slot_labels = [_fmt_slot(s) for s in slots]
             label_to_slot = dict(zip(slot_labels, slots))
 
-            st.markdown(
-                f"<div class='mc-sub' style='margin-top:6px;'>Request ID: <b>{appt_id}</b></div>",
-                unsafe_allow_html=True,
-            )
+            st.info(f"Request ID: {appt_id}")
 
-            chosen_label = st.selectbox(
-                "Select a time",
-                options=slot_labels,
-                key=f"pick_slot_{appt_id}",
-            )
+            chosen_label = st.selectbox("Select a time", options=slot_labels, key=f"pick_slot_{appt_id}")
 
-            cA, cB = st.columns([1, 1], gap="small")
-            with cA:
+            colA, colB = st.columns([1, 1])
+            with colA:
                 if st.button("Confirm selected time", type="primary", use_container_width=True, key=f"confirm_{appt_id}"):
                     chosen_slot = label_to_slot.get(chosen_label, slots[0])
 
-                    # Update appointment
                     try:
                         updated = a.model_copy(update={"chosen_slot": chosen_slot, "status": "confirmed"})
                     except Exception:
@@ -207,92 +196,74 @@ def render() -> None:
                     st.success("Appointment confirmed.")
                     st.rerun()
 
-            with cB:
-                st.caption("This is a demo scheduling flow (no email/calendar integration).")
+            with colB:
+                st.caption("Demo scheduling (no email/calendar integration).")
 
-            st.markdown("<div style='height:8px'></div>", unsafe_allow_html=True)
-
-        card_close()
-        st.markdown("<br>", unsafe_allow_html=True)
+        st.divider()
 
     # -------------------------
-    # Metrics (FIXED: no HTML inside metric_card)
+    # Two panels: Scan history + Upcoming
     # -------------------------
-    c1, c2, c3 = st.columns(3, gap="large")
-    with c1:
-        metric_card("Scans uploaded", str(len(reports)), foot="Total")
-    with c2:
-        metric_card("Next appointment", next_appt_value, foot=next_appt_foot)
-    with c3:
-        metric_card(
-            "Last risk level",
-            ("—" if not last_risk else last_risk.title()),
-            foot=last_risk_date or "",
-        )
-        # Render badge BELOW (prevents stray </div> showing on mobile)
-        st.markdown(risk_badge(last_risk or "low"), unsafe_allow_html=True)
+    left, right = st.columns([2, 1])
 
-    st.markdown("<br>", unsafe_allow_html=True)
-
-    left, right = st.columns([2, 1], gap="large")
-
-    # -------------------------
-    # Recent scans: with "View" buttons -> opens Results
-    # -------------------------
     with left:
-        card_open("Scan history", "View what the model extracted from your scans.")
+        st.subheader("Scan history")
+        st.caption("View what the model extracted from your scans.")
         if not recent_scans:
             st.caption("No scans yet. Upload an image in Scan Analysis.")
         else:
             for i, (label, when, risk, payload) in enumerate(recent_scans[:8]):
-                cA, cB = st.columns([4, 1], gap="small")
-                with cA:
-                    st.markdown(
-                        f"""
-<div style="display:flex; justify-content:space-between; gap:10px; padding:12px 0; border-top:1px solid rgba(15,23,42,0.06);">
-  <div>
-    <div style="font-weight:800;">{label}</div>
-    <div class="mc-sub">{when}</div>
-  </div>
-  <div>{risk_badge(risk)}</div>
-</div>
-                        """,
-                        unsafe_allow_html=True,
-                    )
-                with cB:
+                with st.container():
+                    st.write(f"**{label}**")
+                    st.caption(f"{when} • {_risk_text(risk)}")
                     if st.button("View", key=f"view_report_{i}", use_container_width=True):
                         st.session_state["triage_result"] = payload
                         st.session_state["current_page"] = "results"
                         st.rerun()
-        card_close()
+                st.write("")
 
-    # -------------------------
-    # Upcoming
-    # -------------------------
     with right:
-        card_open("Upcoming")
-        if not upcoming:
+        st.subheader("Upcoming")
+        upcoming_rows: List[Tuple[str, str, str]] = []  # time, label, date
+
+        for a in appts[:20]:
+            status = getattr(a, "status", "")
+            chosen = getattr(a, "chosen_slot", None)
+            proposed = getattr(a, "proposed_slots", None) or []
+
+            if any_confirmed_future:
+                if status == "confirmed" and chosen:
+                    try:
+                        dt = datetime.fromisoformat(chosen)
+                        if dt >= now:
+                            upcoming_rows.append((dt.strftime("%H:%M"), "Consultation (confirmed)", dt.strftime("%d %b")))
+                    except Exception:
+                        pass
+            else:
+                if status == "proposed" and proposed:
+                    earliest = None
+                    for s in proposed:
+                        try:
+                            dt = datetime.fromisoformat(s)
+                            earliest = dt if (earliest is None or dt < earliest) else earliest
+                        except Exception:
+                            continue
+                    if earliest:
+                        upcoming_rows.append((earliest.strftime("%H:%M"), "Consultation (choose a time)", earliest.strftime("%d %b")))
+                    else:
+                        upcoming_rows.append(("—", "Consultation (choose a time)", "—"))
+
+        if not upcoming_rows:
             st.caption("No upcoming appointments.")
         else:
-            for time, label, date_str in upcoming[:8]:
-                st.markdown(
-                    f"""
-<div style="display:flex; gap:12px; padding:12px 0; border-top:1px solid rgba(15,23,42,0.06); align-items:flex-start;">
-  <div style="min-width:64px;">
-    <div style="font-weight:900;">{time}</div>
-    <div class="mc-sub">{date_str}</div>
-  </div>
-  <div style="flex:1;">
-    <div style="font-weight:800;">{label}</div>
-  </div>
-</div>
-                    """,
-                    unsafe_allow_html=True,
-                )
-        card_close()
+            for time, label, date_str in upcoming_rows[:8]:
+                st.write(f"**{time}**  — {label}")
+                st.caption(date_str)
+                st.write("")
 
-    st.markdown("<br>", unsafe_allow_html=True)
-    cols = st.columns([1, 1, 1], gap="small")
+    st.divider()
+
+    cols = st.columns(3)
     with cols[0]:
         if st.button("Scan analysis →", type="primary", use_container_width=True):
             st.session_state["current_page"] = "upload"

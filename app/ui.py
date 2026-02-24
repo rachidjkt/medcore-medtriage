@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import html
 import streamlit as st
+import sys
 
 
 def inject_theme() -> None:
@@ -313,5 +314,9 @@ def portal_choice(title: str, subtitle: str, icon_text: str = "•") -> None:
         unsafe_allow_html=True,
     )
 
-
+# -------------------------------------------------------------------
+# Import unifier: force any `import ui` / `from ui import ...`
+# to resolve to THIS module (app.ui), avoiding stale duplicate ui.py files.
+# -------------------------------------------------------------------
+sys.modules["ui"] = sys.modules[__name__]
 

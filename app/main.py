@@ -9,12 +9,21 @@ MedTriage / MedCore — Streamlit entry point.
 """
 
 from __future__ import annotations
+import sys
 
 import logging
 import sys
 from pathlib import Path
 
 import streamlit as st
+from pathlib import Path
+
+# Ensure repo root is on PYTHONPATH so `import app.*` works everywhere (Streamlit Cloud/local).
+ROOT = Path(__file__).resolve().parents[1]
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
+
+import app.ui  # noqa: E402
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]  # .../medtriage_app
 if str(PROJECT_ROOT) not in sys.path:
