@@ -75,3 +75,5 @@ streamlit/secrets.toml
 .streamlit/secrets.toml
 .env
 *.env
+
+data/app_db.json
