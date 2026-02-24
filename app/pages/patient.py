@@ -1,3 +1,6 @@
+# =========================
+# app/pages/patient.py  (UPDATED)
+# =========================
 """
 app/pages/patient.py
 
@@ -5,6 +8,7 @@ Patient portal: Overview (MedCore style)
 - Metrics + scan history
 - Action required for proposed appointment(s) (deduped)
 - Next appointment uses earliest confirmed future slot (fixes not updating)
+- Fix: avoid HTML inside metric_card (prevents </div> showing on mobile/Streamlit Cloud)
 """
 
 from __future__ import annotations
@@ -50,8 +54,6 @@ def render() -> None:
         return
 
     db = get_db()
-    demo_mode = st.session_state.get("demo_mode", True)
-
     user = st.session_state.get("auth_user") or {}
     patient_id = str(user.get("id", "patient"))
 
@@ -139,7 +141,6 @@ def render() -> None:
             except Exception:
                 pass
         elif status == "proposed" and proposed:
-            # show earliest proposed slot for context
             earliest = None
             for s in proposed:
                 try:
@@ -160,7 +161,6 @@ def render() -> None:
         if getattr(a, "status", "") == "proposed" and (getattr(a, "proposed_slots", None) or [])
     ]
 
-    # Deduplicate by (professional_id + proposed_slots)
     uniq = []
     seen = set()
     for a in proposed_requests:
@@ -216,7 +216,7 @@ def render() -> None:
         st.markdown("<br>", unsafe_allow_html=True)
 
     # -------------------------
-    # Metrics
+    # Metrics (FIXED: no HTML inside metric_card)
     # -------------------------
     c1, c2, c3 = st.columns(3, gap="large")
     with c1:
@@ -228,8 +228,9 @@ def render() -> None:
             "Last risk level",
             ("—" if not last_risk else last_risk.title()),
             foot=last_risk_date or "",
-            pill_html=risk_badge(last_risk or "low"),
         )
+        # Render badge BELOW (prevents stray </div> showing on mobile)
+        st.markdown(risk_badge(last_risk or "low"), unsafe_allow_html=True)
 
     st.markdown("<br>", unsafe_allow_html=True)
 
@@ -260,7 +261,6 @@ def render() -> None:
                     )
                 with cB:
                     if st.button("View", key=f"view_report_{i}", use_container_width=True):
-                        # Store payload as the active triage_result for results page
                         st.session_state["triage_result"] = payload
                         st.session_state["current_page"] = "results"
                         st.rerun()

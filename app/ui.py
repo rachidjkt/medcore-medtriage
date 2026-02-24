@@ -1,6 +1,9 @@
-# app/ui.py
+# =========================
+# app/ui.py  (UPDATED)
+# =========================
 from __future__ import annotations
 
+import html
 import streamlit as st
 
 
@@ -132,7 +135,7 @@ section[data-testid="stSidebar"] .stRadio div[role="radiogroup"] > label:hover{
   filter: brightness(0.98);
 }
 
-/* ✅ Secondary (fix: text invisible until hover) */
+/* Secondary */
 .stButton>button[kind="secondary"]{
   background: #FFFFFF !important;
   color: var(--text) !important;
@@ -142,7 +145,7 @@ section[data-testid="stSidebar"] .stRadio div[role="radiogroup"] > label:hover{
   background: rgba(15,23,42,0.04) !important;
 }
 
-/* ✅ Tertiary (just in case Streamlit uses it in your version) */
+/* Tertiary */
 .stButton>button[kind="tertiary"]{
   color: var(--text) !important;
 }
@@ -181,18 +184,6 @@ section[data-testid="stSidebar"] .stRadio div[role="radiogroup"] > label:hover{
 .risk-moderate{ background: hsl(var(--risk-mod-bg)); color: hsl(var(--risk-mod)); }
 .risk-high{ background: hsl(var(--risk-high-bg)); color: hsl(var(--risk-high)); }
 
-.mc-pill{
-  display:inline-block;
-  padding: 6px 10px;
-  border-radius: 999px;
-  font-size: 12px;
-  font-weight: 800;
-  border: 1px solid rgba(15,23,42,0.08);
-}
-.mc-pill-low{ background: hsl(var(--risk-low-bg)); color: hsl(var(--risk-low)); }
-.mc-pill-mod{ background: hsl(var(--risk-mod-bg)); color: hsl(var(--risk-mod)); }
-.mc-pill-high{ background: hsl(var(--risk-high-bg)); color: hsl(var(--risk-high)); }
-
 /* =========================
    Portal cards (Auth)
    ========================= */
@@ -213,67 +204,15 @@ section[data-testid="stSidebar"] .stRadio div[role="radiogroup"] > label:hover{
 }
 .mc-portal-title{ font-weight: 900; color: var(--text); }
 .mc-portal-sub{ color: var(--muted); font-size: 13px; }
+
 /* ============================================================
-   Fix: File uploader text + filename not visible
-   (Streamlit uploader has internal labels/spans that get overridden)
+   File uploader fixes:
+   - Keep dropzone instructions readable (dark bar)
+   - Keep filename readable (white row)
+   - Make browse button WHITE
    ============================================================ */
 
-/* Main area uploader: force readable text */
-section[data-testid="stFileUploader"] * {
-  color: rgba(15,23,42,0.92) !important;
-}
-
-/* Keep the "limit 200MB..." and filename readable */
-section[data-testid="stFileUploader"] small,
-section[data-testid="stFileUploader"] span,
-section[data-testid="stFileUploader"] p {
-  color: rgba(15,23,42,0.72) !important;
-}
-
-/* If your uploader is in sidebar at some point, keep it readable on dark */
-section[data-testid="stSidebar"] section[data-testid="stFileUploader"] *,
-section[data-testid="stSidebar"] section[data-testid="stFileUploader"] small,
-section[data-testid="stSidebar"] section[data-testid="stFileUploader"] span {
-  color: hsl(var(--sidebar-text)) !important;
-}
-/* ============================================================
-   Fix: File uploader filename / row is invisible (opacity + color)
-   ============================================================ */
-
-/* The “uploaded file row” container */
-div[data-testid="stFileUploaderFile"]{
-  background: #FFFFFF !important;
-  border: 1px solid rgba(15,23,42,0.10) !important;
-  border-radius: 12px !important;
-  opacity: 1 !important;
-}
-
-/* The filename text (this is the key one) */
-div[data-testid="stFileUploaderFileName"],
-div[data-testid="stFileUploaderFileName"] *{
-  color: rgba(15,23,42,0.92) !important;
-  opacity: 1 !important;
-  filter: none !important;
-}
-
-/* The “limit 200MB…” line + helper text */
-div[data-testid="stFileUploaderDropzoneInstructions"] *,
-div[data-testid="stFileUploaderDropzoneInstructions"] small{
-  color: rgba(15,23,42,0.72) !important;
-  opacity: 1 !important;
-}
-
-/* The delete (X) button / icons */
-div[data-testid="stFileUploaderFile"] button,
-div[data-testid="stFileUploaderFile"] svg{
-  opacity: 1 !important;
-  filter: none !important;
-}
-/* ============================================================
-   File uploader: keep filename visible + fix dropzone/button text
-   ============================================================ */
-
-/* Uploaded file row (works) */
+/* Uploaded file row */
 div[data-testid="stFileUploaderFile"]{
   background: #FFFFFF !important;
   border: 1px solid rgba(15,23,42,0.10) !important;
@@ -286,21 +225,14 @@ div[data-testid="stFileUploaderFileName"] *{
   opacity: 1 !important;
 }
 
-/* ✅ Dropzone container (the dark bar area) */
-div[data-testid="stFileUploaderDropzone"]{
-  border-radius: 12px !important;
-  opacity: 1 !important;
-}
-
-/* ✅ Dropzone instructions text ("Drag and drop file here", limits, etc.) */
-div[data-testid="stFileUploaderDropzoneInstructions"] *,
+/* Dropzone instructions text ("Drag and drop file here", limits, etc.) */
+div[data-testid="stFileUploaderDropzoneInstructions"] * ,
 div[data-testid="stFileUploaderDropzoneInstructions"] small{
-  color: rgba(255,255,255,0.92) !important;   /* readable on dark dropzone */
+  color: rgba(255,255,255,0.92) !important;
   opacity: 1 !important;
-  filter: none !important;
 }
 
-/* ✅ The actual browse button inside the uploader */
+/* Browse button inside uploader (force white) */
 div[data-testid="stFileUploader"] button{
   background: #FFFFFF !important;
   color: rgba(15,23,42,0.92) !important;
@@ -316,9 +248,17 @@ div[data-testid="stFileUploader"] button:hover{
     )
 
 
+def _esc(x: str) -> str:
+    """Escape any user/DB-provided strings before injecting into HTML."""
+    return html.escape(str(x or ""), quote=True)
+
+
 def card_open(title: str, subtitle: str = "") -> None:
-    sub = f'<div class="mc-sub">{subtitle}</div>' if subtitle else ""
-    st.markdown(f'<div class="mc-card"><div class="mc-title">{title}</div>{sub}', unsafe_allow_html=True)
+    sub = f'<div class="mc-sub">{_esc(subtitle)}</div>' if subtitle else ""
+    st.markdown(
+        f'<div class="mc-card"><div class="mc-title">{_esc(title)}</div>{sub}',
+        unsafe_allow_html=True,
+    )
 
 
 def card_close() -> None:
@@ -336,30 +276,22 @@ def risk_badge(level: str) -> str:
     return f'<span class="risk-badge {cls}">{txt}</span>'
 
 
-def pill(level: str) -> str:
-    lvl = (level or "").lower()
-    if "high" in lvl:
-        cls, txt = "mc-pill mc-pill-high", "High Risk"
-    elif "mod" in lvl or "urgent" in lvl:
-        cls, txt = "mc-pill mc-pill-mod", "Moderate Risk"
-    else:
-        cls, txt = "mc-pill mc-pill-low", "Low Risk"
-    return f'<span class="{cls}">{txt}</span>'
-
-
-def metric_card(label: str, value: str, foot: str | None = None, pill_html: str | None = None) -> None:
-    foot_html = f'<div class="mc-metric-foot">{foot}</div>' if foot else ""
-    pill_html = pill_html or ""
+def metric_card(label: str, value: str, foot: str | None = None) -> None:
+    """
+    IMPORTANT: metric_card renders plain text only (escaped).
+    If you need HTML (e.g., risk_badge), render it *outside* the metric_card
+    with st.markdown(..., unsafe_allow_html=True).
+    """
+    foot_html = f'<div class="mc-metric-foot">{_esc(foot)}</div>' if foot else ""
     st.markdown(
         f"""
 <div class="mc-card">
   <div class="mc-metric-row">
     <div>
-      <div class="mc-metric-label">{label}</div>
-      <div class="mc-metric-value">{value}</div>
+      <div class="mc-metric-label">{_esc(label)}</div>
+      <div class="mc-metric-value">{_esc(value)}</div>
       {foot_html}
     </div>
-    <div>{pill_html}</div>
   </div>
 </div>
         """,
@@ -371,12 +303,15 @@ def portal_choice(title: str, subtitle: str, icon_text: str = "•") -> None:
     st.markdown(
         f"""
 <div class="mc-portal">
-  <div class="mc-portal-ico">{icon_text}</div>
+  <div class="mc-portal-ico">{_esc(icon_text)}</div>
   <div>
-    <div class="mc-portal-title">{title}</div>
-    <div class="mc-portal-sub">{subtitle}</div>
+    <div class="mc-portal-title">{_esc(title)}</div>
+    <div class="mc-portal-sub">{_esc(subtitle)}</div>
   </div>
 </div>
         """,
         unsafe_allow_html=True,
     )
+
+
+
