@@ -1,326 +1,144 @@
-# MedCore – MedTriage AI 🏥
+# MedCore / MedTriage
 
-AI-assisted medical triage and care coordination powered by **Google MedGemma**
+A **Python and Streamlit healthcare-workflow prototype** connecting image-analysis outputs with patient records, clinician review, appointment proposals, and hospital-referral suggestions.
 
-Built for the **MedGemma Impact Challenge**
+Built for the **MedGemma Impact Challenge**. The project explores the application workflow around a model, including structured output handling and persistence.
 
+[Open the hosted workflow demo](https://medcore-medtriage-xtcvvezhgxpcstf5nrng2p.streamlit.app/) · [Model integration](models/medgemma_runner.py) · [Evaluation script](eval/evaluate.py)
 
-demo-website(no model, hosting-friendly) : https://medcore-medtriage-xtcvvezhgxpcstf5nrng2p.streamlit.app/
----
+**Research and demonstration only.** This is not a clinically validated system. Use synthetic information and non-sensitive example images; the demo authentication and storage are not suitable for real patient data.
 
-# Overview
+## Two execution modes
 
-MedCore / MedTriage AI is a clinical workflow prototype that combines medical image analysis with patient–clinician coordination.
+| Mode | Behavior |
+|---|---|
+| Demo mode — enabled by default | Uses a fixed example payload to demonstrate the workflow; it does not analyze the uploaded image with a model |
+| Model mode | Calls the MedGemma wrapper, preprocesses the image, and parses the generated output into a structured object |
 
-The system allows:
+Demo outputs are examples, not evidence of prediction quality.
 
-• Patients to upload scans and receive structured triage guidance  
-• Clinicians to review patient results and manage cases  
-• AI-assisted hospital referral based on urgency and specialty  
+## Implemented workflow
 
-The application is built with **Python**, **Streamlit**, and **MedGemma (HAI-DEF)** and demonstrates how open medical models can support healthcare workflows while keeping humans in control of final decisions.
+- Patient and professional views with a demo sign-in flow.
+- Image upload with optional contextual information.
+- MedGemma integration for structured image-analysis outputs.
+- JSON extraction and Pydantic validation, with a labeled fallback when parsing fails.
+- Patient profiles and report history.
+- Appointment proposals and confirmation workflows.
+- Rule-based hospital ranking using a local Ottawa/Gatineau dataset.
 
-Instead of only generating model predictions, MedCore focuses on the entire care loop:
+Schema validation checks output structure; it does not establish medical correctness. Hospital ranking uses static attributes, not live ICU capacity, wait times, or verified real-time availability.
 
-image → triage → clinician review → scheduling → referral
+## Architecture
 
----
+| Component | Responsibility |
+|---|---|
+| [app/main.py](app/main.py) | Streamlit entry point, navigation, role views, and demo toggle |
+| [app/pages/](app/pages/) | Patient, professional, upload, results, and referral interfaces |
+| [models/medgemma_runner.py](models/medgemma_runner.py) | MedGemma loading and generation |
+| [pipelines/preprocess.py](pipelines/preprocess.py) | RGB conversion, resizing, and optional autocontrast |
+| [pipelines/postprocess.py](pipelines/postprocess.py) | JSON extraction, validation, and parsing fallback |
+| [pipelines/storage.py](pipelines/storage.py) | JSON-backed persistence used by the main application |
+| [pipelines/referral_logic.py](pipelines/referral_logic.py) | Rule-based hospital scoring |
+| [storage/](storage/) | Additional database, export, and encryption modules |
+| [eval/evaluate.py](eval/evaluate.py) | Labeled-case evaluation harness |
 
-# Architecture
+The main application's active storage path is `data/app_db.json`. The presence of separate encryption/database modules does not mean the running JSON-backed workflow uses them.
 
-```
-medtriage_app/
-│
-├── app/
-│   ├── main.py                  ← Streamlit entry point + navigation
-│   └── pages/
-│       ├── auth.py              ← Login + role selection
-│       ├── patient.py           ← Patient dashboard
-│       ├── professional.py      ← Clinician dashboard
-│       ├── patients.py          ← Case management
-│       ├── upload.py            ← Image upload + context input + Demo Mode
-│       ├── results.py           ← Triage report display
-│       └── referral.py          ← Hospital ranking + Find Care
-│
-├── models/
-│   └── medgemma_runner.py       ← HuggingFace model wrapper + inference
-│
-├── pipelines/
-│   ├── preprocess.py            ← Image → RGB, resize, autocontrast
-│   ├── postprocess.py           ← JSON extraction + validation
-│   ├── referral_logic.py        ← Hospital scoring + ranking
-│   ├── schemas.py               ← Pydantic models
-│   └── storage.py               ← Case storage layer
-│
-├── storage/
-│   ├── db.py                    ← Local demo database
-│   ├── models.py                ← Case models
-│   ├── export.py                ← Data export tools
-│   └── crypto.py                ← Encryption helpers
-│
-├── data/
-│   ├── hospitals_ottawa.json    ← Ottawa hospital dataset
-│
-├── eval/
-│   └── evaluate.py              ← Batch evaluation + metrics
-│
-├── requirements.txt
-└── README.md
-```
+## Run locally
 
----
-
-# Data Flow
-
-```
-User Upload
-    │
-    ▼
-preprocess_image()          ← RGB, resize to 512px, autocontrast
-    │
-    ▼
-MedGemmaRunner.analyze_image()   ← HuggingFace inference (GPU/CPU)
-    │
-    ▼
-parse_model_output()        ← JSON extraction + Pydantic validation
-    │
-    ▼
-TriageOutput                ← Structured result (triage_level, findings, etc.)
-    │
-    ▼
-rank_hospitals()            ← Score hospitals by specialty + capability
-    │
-    ▼
-Streamlit UI                ← Patient + Clinician dashboards
-```
-
----
-
-# Key Features
-
-## AI Triage
-
-Uses **MedGemma-1.5-4B-it**, a multimodal medical vision-language model, to analyze medical images and generate structured outputs:
-
-• triage level  
-• suspected findings  
-• red flags  
-• recommended next steps  
-• specialty category  
-• patient-friendly summary  
-
-Outputs are validated with **Pydantic schemas** before being shown in the interface.
-
----
-
-# Patient Portal
-
-Patients can:
-
-• Upload medical images  
-• View AI triage summaries  
-• Track scan history  
-• Confirm proposed appointments  
-• View recommended hospitals  
-
----
-
-# Clinician Portal
-
-Healthcare professionals can:
-
-• View patient list  
-• Review patient profiles  
-• Run MedGemma analysis on behalf of a patient  
-• Propose appointment slots  
-• Track patient cases  
-
----
-
-# Hospital Referral Engine
-
-Hospitals are ranked using:
-
-• medical specialty  
-• trauma capability  
-• ICU availability  
-• triage severity  
-
-Supports **Ottawa and Gatineau hospitals** with geographic coordinates for future routing.
-
----
-
-# Demo Mode
-
-The system can run without loading the model, allowing it to:
-
-• deploy on free hosting platforms  
-• demonstrate UI features without GPU  
-• test workflows safely
-
----
-
-# How to Run Locally
+Python 3.10 or newer is required by the source syntax.
 
 ```bash
-git clone https://github.com/rachidjkt/medcore-medtriage
+git clone https://github.com/rachidjkt/medcore-medtriage.git
 cd medcore-medtriage
-
 python -m venv .venv
+```
 
-# Windows
-.venv\Scripts\activate
+Activate the environment:
 
+```bash
 # macOS / Linux
 source .venv/bin/activate
-
-pip install -r requirements.txt
-
-streamlit run app/main.py
 ```
 
-The app will open at:
+```powershell
+# Windows PowerShell
+.venv\Scripts\Activate.ps1
+```
 
-http://localhost:8501
-
----
-
-# MedGemma Setup
-
-Access to the model requires HuggingFace authentication.
-
-Request access here:
-
-https://huggingface.co/google/medgemma-1.5-4b-it
-
-Then login:
+Install dependencies and launch from the repository root:
 
 ```bash
-huggingface-cli login
+python -m pip install -r requirements.txt
+python -m streamlit run app/main.py
 ```
 
-or set an environment variable:
+Keep **Demo Mode** enabled for a workflow walkthrough without loading model weights.
 
-Windows
+The application seeds demonstration accounts on first initialization:
 
-```
-setx HF_TOKEN "your_token"
-```
-
-Linux / macOS
-
-```
-export HF_TOKEN=your_token
-```
-
----
-
-# Hardware Notes
-
-| Hardware | Inference Speed | Notes |
+| Role | Email | Password |
 |---|---|---|
-| NVIDIA GPU (≥8GB VRAM) | ~5–15 seconds | Recommended |
-| Apple Silicon | ~20–40 seconds | Works with MPS |
-| CPU | ~1–3 minutes | Slow but functional |
+| Patient | patient@demo.com | demo |
+| Professional | doctor@demo.com | demo |
 
-The model loads automatically on CUDA when available.
+These are intentionally public demonstration credentials. Do not reuse real passwords.
 
----
+### Model mode prerequisites
 
-# Evaluation
+The wrapper targets `google/medgemma-1.5-4b-it`. Model access is subject to its Hugging Face access requirements and terms. Supply authentication through a local login or the `HF_TOKEN` / `HUGGINGFACE_HUB_TOKEN` environment variable; never commit tokens.
 
-Place labeled cases in:
+The current wrapper selects CUDA when available and CPU otherwise. It attempts 4-bit loading on CUDA and falls back to FP16. It does not currently select Apple's MPS backend.
 
-```
-eval/cases.json
-```
+Model loading may download substantial weights. Hardware requirements and inference latency have not been established by a published benchmark in this repository. The broad lower bounds in `requirements.txt` are not a verified model-mode compatibility matrix.
 
-Example:
+## Evaluation
+
+The harness expects:
+
+- Labeled cases in `eval/cases.json`.
+- Corresponding images in `data/demo_images/`.
+
+Example case file:
 
 ```json
 [
   {
-    "image_filename": "chest_xray_01.png",
-    "context": "65-year-old with acute chest pain.",
-    "ground_truth_triage_level": "critical"
+    "image_filename": "example.png",
+    "context": "Synthetic example context",
+    "ground_truth_triage_level": "routine"
   }
 ]
 ```
 
-Then run:
+Run:
 
 ```bash
 python -m eval.evaluate
 ```
 
-Metrics:
+The script prints a per-case comparison, overall accuracy, critical recall, and escalation rate. It currently processes at most **10 cases**. The repository does not include the labeled case file, evaluation images, or a published results report.
 
-• triage accuracy  
-• escalation rate  
-• critical recall  
+Parsing failures return a fallback labeled `urgent`. Evaluation needs to distinguish those fallbacks from successful model predictions before interpreting escalation or recall.
 
----
+## Scope and limitations
 
-# Limitations
+- No clinical validation or calibrated confidence estimates.
+- PNG/JPG upload workflow; no native DICOM ingestion.
+- Local JSON persistence and demonstration authentication.
+- Static hospital metadata and no distance-based ranking.
+- Dependency compatibility and model-mode execution require further verification.
 
-Current prototype limitations:
+## Next improvements
 
-• No DICOM ingestion yet  
-• No secure PHI storage (demo database only)  
-• No clinical validation  
-• Hospital ranking not distance-aware yet  
+- Add a reproducible environment and synthetic workflow checks.
+- Separate parsing-fallback rates from prediction metrics.
+- Publish a documented evaluation set and results.
+- Consolidate storage and add production-grade authentication before considering any real deployment.
 
----
+## Author
 
-# Future Work
+**Rachid Tarnagda** — Biomedical Science, Computer Science minor, University of Ottawa.
 
-• DICOM integration  
-• real geolocation routing  
-• hospital API integration  
-• clinician feedback loop  
-• model confidence calibration  
-• secure deployment
-
----
-
-# Safety
-
-This system follows the **HAI-DEF philosophy**:
-
-AI assists clinicians rather than replacing them.
-
-Outputs are:
-
-• advisory  
-• explainable  
-• validated before display
-
----
-
-# Disclaimer
-
-This application is for **research and demonstration purposes only.**
-
-It must not be used to make real medical decisions.
-
-Always consult a qualified healthcare professional.
-
-In an emergency call **911**.
-
----
-
-# Author
-
-**Rachid J. Tarnagda**  
-University of Ottawa  
-Biomedical Science + Computer Science  
-
-GitHub  
-https://github.com/rachidjkt
-
-LinkedIn  
-https://www.linkedin.com/in/rachid-jonathan-k-tarnagda-97296a284/
-
----
-
-Built for the **MedGemma Impact Challenge**
+[GitHub](https://github.com/rachidjkt) · [LinkedIn](https://www.linkedin.com/in/rachid-jonathan-k-tarnagda-97296a284/)
